@@ -16,8 +16,8 @@ void setup()
     Serial1.begin(115200);
 
     pinMode(ARDUINO_LED_PIN, OUTPUT);
-    pinMode(PLAYER_ID1_PIN, INPUT_PULLUP);
-    pinMode(PLAYER_ID2_PIN, INPUT_PULLUP);
+    //pinMode(PLAYER_ID1_PIN, INPUT_PULLUP);
+    //pinMode(PLAYER_ID2_PIN, INPUT_PULLUP);
     digitalWrite(ARDUINO_LED_PIN, HIGH);
 
     memset(usbd_c, 0x00, sizeof(usbd_controller_t) * MAX_GAMEPADS);
@@ -36,16 +36,9 @@ void setup()
     //01 = Player 2 (SLAVE 1)
     //10 = Player 3 (SLAVE 2)
     //11 = Player 4 (SLAVE 3)
-    player_id = digitalRead(PLAYER_ID1_PIN) << 1 | digitalRead(PLAYER_ID2_PIN);
 
-    if (player_id == 0)
-    {
         master_init();
-    }
-    else
-    {
-        slave_init();
-    }
+
 }
 
 void loop()
@@ -66,14 +59,8 @@ void loop()
     loop_cnt++;
 #endif
 
-    if (player_id == 0)
-    {
         master_task();
-    }
-    else
-    {
-        slave_task();
-    }
+
 
     //Handle OG Xbox side (OG Xbox)
     if (usbd_xid.getType() != usbd_c[0].type)

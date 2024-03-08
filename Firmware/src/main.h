@@ -13,8 +13,8 @@
 
 #define USB_HOST_RESET_PIN 9
 #define ARDUINO_LED_PIN 17
-#define PLAYER_ID1_PIN 19
-#define PLAYER_ID2_PIN 20
+#define I2C_ADDRESS 0x3C
+#define VCC_READ_PIN A0
 
 #ifndef SB_DEFAULT_SENSITIVITY
 #define SB_DEFAULT_SENSITIVITY 400
@@ -29,7 +29,6 @@ typedef struct
 
 void master_init();
 void master_task();
-void slave_init();
-void slave_task();
+
 
 #endif 

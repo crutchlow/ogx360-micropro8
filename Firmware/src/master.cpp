@@ -3,7 +3,6 @@
 
 #include <Arduino.h>
 #include <Wire.h>
-#include <EEPROM.h>
 #include <UHS2/Usb.h>
 #include <UHS2/usbhub.h>
 
@@ -73,17 +72,6 @@ void master_init(void)
         user_data[i].vmouse_y = SBC_AIMING_MID;
     }
 
-    //Setup EEPROM for non-volatile settings
-    static const uint8_t magic = 0xAB;
-    if (EEPROM.read(0x00) != magic)
-    {
-        EEPROM.write(0, magic);
-        EEPROM.put(1, sb_sensitivity);
-    }
-    else
-    {
-        EEPROM.get(1, sb_sensitivity);
-    }
 }
 
 void master_task(void)
@@ -181,6 +169,9 @@ void master_task(void)
 
 static void handle_duke(usbh_xinput_t *_usbh_xinput, usbd_duke_t* _usbd_duke, xinput_user_data_t *_user_data)
 {
+        int32_t scalex;
+        int32_t scaley;
+        int32_t offset;
     xinput_padstate_t *usbh_xstate = &_usbh_xinput->pad_state;
     memset(&_usbd_duke->in.wButtons, 0x00, 8); //Also clears A/B/X/Y,BLACK,WHITE
 
@@ -202,10 +193,36 @@ static void handle_duke(usbh_xinput_t *_usbh_xinput, usbd_duke_t* _usbd_duke, xi
     if (usbh_xstate->wButtons & XINPUT_GAMEPAD_Y) _usbd_duke->in.Y = 0xFF;
 
     //Analog Sticks
-    _usbd_duke->in.leftStickX  = usbh_xstate->sThumbLX;
-    _usbd_duke->in.leftStickY  = usbh_xstate->sThumbLY;
-    _usbd_duke->in.rightStickX = usbh_xstate->sThumbRX;
-    _usbd_duke->in.rightStickY = usbh_xstate->sThumbRY;
+    //for left stick
+        scalex=usbh_xstate->sThumbLX;
+        scaley=usbh_xstate->sThumbLY;
+        offset=(abs(scalex*100) >> 15)*(abs(scaley*100) >> 15)*10793/10000;
+        if (scalex>0) { scalex= scalex+offset; }
+        if (scalex<0) { scalex= scalex-offset; }
+        if (scaley>0) { scaley= scaley+offset; }
+        if (scaley<0) { scaley= scaley-offset; }     
+        if (scaley>32767) { scaley=32767; } if (scaley<-32768) { scaley=-32768; }
+        if (scalex>32767) { scalex=32767; } if (scalex<-32768) { scalex=-32768; }      
+        _usbd_duke->in.leftStickX=scalex;
+        _usbd_duke->in.leftStickY=scaley;
+        
+      //for right stick
+        scalex=usbh_xstate->sThumbRX;
+        scaley=usbh_xstate->sThumbRY;
+        offset=(abs(scalex*100) >> 15)*(abs(scaley*100) >> 15)*10793/10000;
+        if (scalex>0) { scalex= scalex+offset; }
+        if (scalex<0) { scalex= scalex-offset; }
+        if (scaley>0) { scaley= scaley+offset; }
+        if (scaley<0) { scaley= scaley-offset; }         
+        if (scaley>32767) { scaley=32767; } if (scaley<-32768) { scaley=-32768; }
+        if (scalex>32767) { scalex=32767; } if (scalex<-32768) { scalex=-32768; }      
+         _usbd_duke->in.rightStickX=scalex;
+        _usbd_duke->in.rightStickY=scaley;
+            
+   // _usbd_duke->in.leftStickX  = usbh_xstate->sThumbLX;
+   // _usbd_duke->in.leftStickY  = usbh_xstate->sThumbLY;
+   // _usbd_duke->in.rightStickX = usbh_xstate->sThumbRX;
+   // _usbd_duke->in.rightStickY = usbh_xstate->sThumbRY;
     _usbd_duke->in.L           = usbh_xstate->bLeftTrigger;
     _usbd_duke->in.R           = usbh_xstate->bRightTrigger;
 
@@ -459,35 +476,7 @@ static void handle_sbattalion(usbh_xinput_t *_usbh_xinput, usbd_steelbattalion_t
     _usbh_xinput->lValue_requested |= _usbd_sbattalion->out.CockpitHatch_EmergencyEject << 4;
     _usbh_xinput->rValue_requested = _usbh_xinput->lValue_requested;
 
-    if (usbh_xinput_is_chatpad_pressed(_usbh_xinput, XINPUT_CHATPAD_ORANGE))
-    {
-        uint16_t new_sensitivity = 0;
-        if (usbh_xinput_was_chatpad_pressed(_usbh_xinput, XINPUT_CHATPAD_9))
-            new_sensitivity = 200;
-        else if (usbh_xinput_was_chatpad_pressed(_usbh_xinput, XINPUT_CHATPAD_8))
-            new_sensitivity = 250;
-        else if (usbh_xinput_was_chatpad_pressed(_usbh_xinput, XINPUT_CHATPAD_7))
-            new_sensitivity = 300;
-        else if (usbh_xinput_was_chatpad_pressed(_usbh_xinput, XINPUT_CHATPAD_6))
-            new_sensitivity = 350;
-        else if (usbh_xinput_was_chatpad_pressed(_usbh_xinput, XINPUT_CHATPAD_5))
-            new_sensitivity = 400;
-        else if (usbh_xinput_was_chatpad_pressed(_usbh_xinput, XINPUT_CHATPAD_4))
-            new_sensitivity = 650;
-        else if (usbh_xinput_was_chatpad_pressed(_usbh_xinput, XINPUT_CHATPAD_3))
-            new_sensitivity = 800;
-        else if (usbh_xinput_was_chatpad_pressed(_usbh_xinput, XINPUT_CHATPAD_2))
-            new_sensitivity = 1000;
-        else if (usbh_xinput_was_chatpad_pressed(_usbh_xinput, XINPUT_CHATPAD_1))
-            new_sensitivity = 1200;
-
-        if (new_sensitivity != 0 && sb_sensitivity != new_sensitivity)
-        {
-            EEPROM.put(1, new_sensitivity);
-            sb_sensitivity = new_sensitivity;
-        }
-    }
-
+    
     //Hack: Cannot have SBC_W0_COCKPITHATCH and SBC_W0_IGNITION or aiming stick non zeros at the same time
     //or we trigger an IGR or shutdown with some Scene Bioses.
     if (_usbd_sbattalion->in.wButtons[0] & SBC_W0_IGNITION)
